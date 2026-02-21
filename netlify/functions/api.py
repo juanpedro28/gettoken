@@ -1,103 +1,177 @@
-# netlify/functions/api.py
-import json
+import subprocess
+import sys
 import time
-import random
-import hashlib
-import requests
+import webbrowser
 
-MI_API_URL_STATUS = "https://sgp-api.buy.mi.com/bbs/api/global/user/bl-switch/state"
-MI_API_URL_APPLY = "https://sgp-api.buy.mi.com/bbs/api/global/apply/bl-auth"
-
-def generate_device_id(token):
-    random_data = f"{random.random()}-{time.time()}-{token}"
-    return hashlib.sha1(random_data.encode('utf-8')).hexdigest().upper()
-
-def get_headers(token, device_id):
-    return {
-        "Cookie": f"new_bbs_serviceToken={token};versionCode=500411;versionName=5.4.11;deviceId={device_id};",
-        "Content-Type": "application/json; charset=utf-8",
-        "User-Agent": "okhttp/4.12.0"
-    }
-
-def handler(event, context):
-    if event['httpMethod'] != 'POST':
-        return {
-            'statusCode': 405,
-            'body': json.dumps({'status': 'error', 'message': 'Method Not Allowed'})
-        }
-
+required_packages = ["browser-cookie3", "selenium", "pyperclip", "tkinter"]
+for package in required_packages:
     try:
-        body = json.loads(event['body'])
-        token = body.get('token', '').strip()
-    except:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'status': 'error', 'message': 'Bad Request: Invalid JSON'})
-        }
+        __import__(package.replace("-", "_"))
+    except ImportError:
+        print(f"[!] Installing missing package: {package}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-    if not token:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'status': 'error', 'message': 'Token is required'})
-        }
+import browser_cookie3
+import pyperclip
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
+import tkinter as tk
+from tkinter import ttk, messagebox
+import threading
 
-    device_id = generate_device_id(token)
-    headers = get_headers(token, device_id)
-    logs = [f"Generated Device ID: {device_id}"]
+CHROME_LINK = "https://new-ams.c.mi.com/global"
 
-    # 1. Check Status
+
+def extract_firefox_token():
+    """Extracts token from Firefox cookies."""
     try:
-        logs.append("Checking current status...")
-        resp = requests.get(MI_API_URL_STATUS, headers=headers, timeout=10)
-        resp_json = resp.json()
-        code = resp_json.get("code")
-        data_obj = resp_json.get("data", {})
-        
-        if code == 100004:
-            return {'statusCode': 200, 'body': json.dumps({"status": "error", "logs": logs, "message": "Cookie/Token is expired."})}
-        
-        is_pass = data_obj.get("is_pass")
-        button_state = data_obj.get("button_state")
-        deadline = data_obj.get("deadline_format", "Unknown")
-
-        if is_pass == 1:
-            logs.append(f"Status: Approved! Unlock possible until {deadline}")
-            return {'statusCode': 200, 'body': json.dumps({"status": "success", "logs": logs, "message": "Already Approved"})}
-        
-        if is_pass == 4 and button_state == 2:
-             logs.append(f"Status: Blocked until {deadline}")
-             return {'statusCode': 200, 'body': json.dumps({"status": "error", "logs": logs, "message": f"Account blocked until {deadline}"})}
-
-    except Exception as e:
-        logs.append(f"Error checking status: {str(e)}")
-        return {'statusCode': 500, 'body': json.dumps({"status": "error", "logs": logs, "message": "Network error checking status"})}
-
-    # 2. Apply for Unlock
-    try:
-        logs.append("Sending unlock request...")
-        post_body = {"is_retry": True} 
-        resp = requests.post(MI_API_URL_APPLY, headers=headers, json=post_body, timeout=10)
-        resp_json = resp.json()
-        code = resp_json.get("code")
-        msg = resp_json.get("message", "")
-        data_obj = resp_json.get("data", {})
-        logs.append(f"Response Code: {code} | Message: {msg}")
-
-        response_body = {}
-        if code == 0:
-            apply_result = data_obj.get("apply_result")
-            if apply_result == 1:
-                response_body = {"status": "success", "logs": logs, "message": "Application Approved!"}
-            elif apply_result == 3:
-                deadline = data_obj.get("deadline_format", "")
-                response_body = {"status": "warning", "logs": logs, "message": f"Limit exceeded. Try again: {deadline}"}
-            else:
-                response_body = {"status": "success", "logs": logs, "message": f"Request sent. Result: {apply_result}"}
+        # Close Firefox to ensure cookies are written to disk
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/IM", "firefox.exe"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
-             response_body = {"status": "error", "logs": logs, "message": f"API Error: {msg}"}
-        
-        return {'statusCode': 200, 'body': json.dumps(response_body)}
-
+            subprocess.run(["killall", "-9", "firefox"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)  # Give it a moment
     except Exception as e:
-        logs.append(f"Error sending request: {str(e)}")
-        return {'statusCode': 500, 'body': json.dumps({"status": "error", "logs": logs, "message": "Network error sending request"})}
+        print(f"[!] Could not close Firefox automatically: {e}")
+
+    try:
+        cj = browser_cookie3.firefox(domain_name='mi.com')
+        for cookie in cj:
+            if "new_bbs_serviceToken" in cookie.name:
+                return cookie.value
+    except Exception as e:
+        print(f"[!] Failed to load Firefox cookies: {e}")
+        messagebox.showerror("Error", f"Failed to load Firefox cookies:\n{e}")
+    return None
+
+def extract_chrome_token():
+    """Opens Chrome for login and automatically extracts the token."""
+    token = None
+    driver = None
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--app=" + CHROME_LINK)
+        chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(CHROME_LINK)
+        
+        while True:
+            try:
+                if not driver.window_handles:
+                    break
+                
+                cookies = driver.get_cookies()
+                for cookie in cookies:
+                    if cookie['name'] == 'new_bbs_serviceToken':
+                        token = cookie['value']
+                        break
+            except Exception:
+                break
+            
+            if token:
+                break
+            time.sleep(0.5)
+            
+    except WebDriverException as e:
+        print(f"[!] WebDriver error: {e}")
+        messagebox.showerror("WebDriver Error", "Could not start Chrome. Is chromedriver installed and in your PATH?\n\n" + str(e))
+    except Exception as e:
+        print(f"[!] Error executing script in Chrome: {e}")
+        messagebox.showerror("Error", f"An error occurred in Chrome:\n{e}")
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except:
+                pass
+    
+    return token
+
+class TokenExtractorGUI:
+    def __init__(self, master):
+        self.master = master
+        master.title("Token Extractor")
+        master.geometry("450x200")
+        master.resizable(False, False)
+        
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+
+        self.main_frame = ttk.Frame(master, padding="10")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(self.main_frame, text="Choose your browser to extract the token:").pack(pady=5, anchor='w')
+
+        self.button_frame = ttk.Frame(self.main_frame)
+        self.button_frame.pack(pady=10, fill=tk.X, expand=True)
+
+        self.firefox_button = ttk.Button(self.button_frame, text="Get from Firefox", command=self.get_firefox_token)
+        self.firefox_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        self.chrome_button = ttk.Button(self.button_frame, text="Login & Get Token", command=self.get_chrome_token)
+        self.chrome_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        self.token_frame = ttk.Frame(self.main_frame)
+        self.token_frame.pack(pady=5, fill=tk.X)
+        
+        ttk.Label(self.token_frame, text="Token:").pack(side=tk.LEFT)
+        self.token_var = tk.StringVar()
+        self.token_entry = ttk.Entry(self.token_frame, textvariable=self.token_var, state='readonly', width=40)
+        self.token_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        self.copy_button = ttk.Button(self.token_frame, text="Copy", command=self.copy_token, state=tk.DISABLED)
+        self.copy_button.pack(side=tk.LEFT)
+        
+        self.status_var = tk.StringVar()
+        self.status_label = ttk.Label(self.main_frame, textvariable=self.status_var)
+        self.status_label.pack(pady=5, anchor='w')
+
+    def run_in_thread(self, target_func):
+        self.firefox_button.config(state=tk.DISABLED)
+        self.chrome_button.config(state=tk.DISABLED)
+        self.status_var.set("Working...")
+        
+        thread = threading.Thread(target=self.run_and_update, args=(target_func,))
+        thread.daemon = True
+        thread.start()
+
+    def run_and_update(self, target_func):
+        token = target_func()
+        
+        self.master.after(0, self.update_gui_with_token, token)
+
+    def update_gui_with_token(self, token):
+        self.firefox_button.config(state=tk.NORMAL)
+        self.chrome_button.config(state=tk.NORMAL)
+        if token:
+            self.token_var.set(token)
+            self.copy_button.config(state=tk.NORMAL)
+            self.status_var.set("Token found and ready to be copied!")
+            self.copy_token() # auto-copy
+            messagebox.showinfo("Success", "Token found and copied to clipboard!")
+        else:
+            self.token_var.set("")
+            self.copy_button.config(state=tk.DISABLED)
+            self.status_var.set("Token not found. Please make sure you are logged in.")
+            messagebox.showwarning("Not Found", "Could not find the token. Please make sure you are logged in on mi.com.")
+
+    def get_firefox_token(self):
+        if not messagebox.askokcancel("Firefox Login", "Please make sure you are logged into https://c.mi.com/global on Firefox.\n\nThis script will need to close Firefox to read the cookies. Press OK to continue."):
+            return
+        self.run_in_thread(extract_firefox_token)
+
+    def get_chrome_token(self):
+        self.run_in_thread(extract_chrome_token)
+
+    def copy_token(self):
+        token = self.token_var.get()
+        if token:
+            pyperclip.copy(token)
+            self.status_var.set("Token copied to clipboard!")
+
+if __name__ == "__main__":
+    print("GetTokens V3 - by byBestix on xdaforums, modified by Gemini")
+    root = tk.Tk()
+    app = TokenExtractorGUI(root)
+    root.mainloop()
