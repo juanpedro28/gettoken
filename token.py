@@ -3,13 +3,14 @@ import sys
 import time
 import webbrowser
 
-required_packages = ["browser-cookie3", "selenium", "pyperclip", "tkinter"]
-for package in required_packages:
-    try:
-        __import__(package.replace("-", "_"))
-    except ImportError:
-        print(f"[!] Installing missing package: {package}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+if not getattr(sys, 'frozen', False):
+    required_packages = ["browser-cookie3", "selenium", "pyperclip"]
+    for package in required_packages:
+        try:
+            __import__(package.replace("-", "_"))
+        except ImportError:
+            print(f"[!] Installing missing package: {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 import browser_cookie3
 import pyperclip
@@ -91,8 +92,8 @@ def extract_chrome_token():
 class TokenExtractorGUI:
     def __init__(self, master):
         self.master = master
-        master.title("Token Extractor")
-        master.geometry("450x200")
+        master.title("Auto Token Login")
+        master.geometry("450x240")
         master.resizable(False, False)
         
         self.style = ttk.Style()
@@ -101,16 +102,13 @@ class TokenExtractorGUI:
         self.main_frame = ttk.Frame(master, padding="10")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(self.main_frame, text="Choose your browser to extract the token:").pack(pady=5, anchor='w')
+        ttk.Label(self.main_frame, text="Launching login window... Please log in.").pack(pady=5, anchor='w')
 
         self.button_frame = ttk.Frame(self.main_frame)
         self.button_frame.pack(pady=10, fill=tk.X, expand=True)
 
-        self.firefox_button = ttk.Button(self.button_frame, text="Get from Firefox", command=self.get_firefox_token)
-        self.firefox_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-
-        self.chrome_button = ttk.Button(self.button_frame, text="Login & Get Token", command=self.get_chrome_token)
-        self.chrome_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        # Auto-start the process
+        self.master.after(500, self.get_chrome_token)
 
         self.token_frame = ttk.Frame(self.main_frame)
         self.token_frame.pack(pady=5, fill=tk.X)
@@ -128,8 +126,6 @@ class TokenExtractorGUI:
         self.status_label.pack(pady=5, anchor='w')
 
     def run_in_thread(self, target_func):
-        self.firefox_button.config(state=tk.DISABLED)
-        self.chrome_button.config(state=tk.DISABLED)
         self.status_var.set("Working...")
         
         thread = threading.Thread(target=self.run_and_update, args=(target_func,))
@@ -142,8 +138,6 @@ class TokenExtractorGUI:
         self.master.after(0, self.update_gui_with_token, token)
 
     def update_gui_with_token(self, token):
-        self.firefox_button.config(state=tk.NORMAL)
-        self.chrome_button.config(state=tk.NORMAL)
         if token:
             self.token_var.set(token)
             self.copy_button.config(state=tk.NORMAL)
