@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Token Extractor</title>
+    <title>Xiaomi Token Extractor (Web)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,64 +15,88 @@
             margin: 0;
         }
         .card {
-            background: white;
+            background: #ffffff;
             padding: 2rem;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 450px;
+            max-width: 500px;
+            width: 90%;
             text-align: center;
         }
-        h1 { color: #FF6900; margin-top: 0; }
-        p { color: #666; }
-        textarea.code-box {
-            width: 100%;
-            height: 60px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            margin: 10px 0;
-            resize: none;
-        }
-        ol { text-align: left; padding-left: 1.5rem; color: #555; line-height: 1.5; }
-        li { margin-bottom: 0.5rem; }
-        a.link { color: #FF6900; text-decoration: none; }
-        a.link:hover { text-decoration: underline; }
-        .btn-login { display: inline-block; background-color: #FF6900; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 0.9rem; margin: 5px 0; }
-        .download-section {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #fff8e1;
-            border: 1px solid #ffe0b2;
+        h1 { color: #FF6900; margin-top: 0; margin-bottom: 0.5rem; }
+        p { color: #666; line-height: 1.6; }
+        
+        .step {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            border: 1px solid #eee;
             border-radius: 8px;
+            background: #fafafa;
+            text-align: left;
         }
+        .step-title { font-weight: bold; display: block; margin-bottom: 0.5rem; color: #333; }
+        
+        /* Bookmarklet Button Style */
+        .bookmarklet {
+            display: block;
+            background-color: #FF6900;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: move; /* Indicates draggable */
+            border: 2px dashed #cc5500;
+            text-align: center;
+            margin: 10px auto;
+            width: fit-content;
+        }
+        .bookmarklet:hover {
+            background-color: #e65c00;
+        }
+
+        .btn-link {
+            display: inline-block;
+            color: #FF6900;
+            text-decoration: none;
+            border: 1px solid #FF6900;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+        .btn-link:hover { background-color: #fff0e6; }
+
+        .note { font-size: 0.85rem; color: #888; margin-top: 2rem; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>Mi Token Extractor</h1>
-        
-        <div class="download-section">
-            <p style="margin-top:0; color:#e65100; font-weight:bold;">🚀 Recommended Method</p>
-            <p style="font-size:0.9rem; margin-bottom:10px;">Download our automated tool to login and get the token instantly.</p>
-            <a href="GetTokens.exe" class="btn-login" style="background-color: #333;">Download Windows Tool (.exe)</a>
+        <h1>Token Extractor</h1>
+        <p>Since websites cannot read your cookies directly for security, use this bookmarklet to extract your <b>new_bbs_serviceToken</b> safely.</p>
+
+        <div class="step">
+            <span class="step-title">Step 1: Install</span>
+            <p style="margin: 0.5rem 0;">Drag this button to your browser's Bookmarks Bar:</p>
+            <a class="bookmarklet" href="javascript:(function(){var n='new_bbs_serviceToken';var c=document.cookie.split(';');var t=null;for(var i=0;i<c.length;i++){var p=c[i].trim();if(p.indexOf(n+'=')==0){t=p.substring(n.length+1);break;}}if(t){prompt('Token Found! Copy it below:',t);}else{alert('Token not found!\n\n1. Make sure you are logged in.\n2. Refresh the page and try again.');}})();" onclick="alert('Drag this button to your bookmarks bar, do not click it directly here!');return false;">
+                Get Mi Token
+            </a>
         </div>
 
-        <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
+        <div class="step">
+            <span class="step-title">Step 2: Login</span>
+            <p style="margin: 0.5rem 0;">Go to the Xiaomi Community and log in.</p>
+            <a href="https://new-ams.c.mi.com/global" target="_blank" class="btn-link">Open Login Page</a>
+        </div>
 
-        <p><strong>Alternative (Manual):</strong> Use the code below in your browser console:</p>
-        
-        <textarea id="jsCode" class="code-box" readonly>javascript:(function(){var match=document.cookie.match(/new_bbs_serviceToken=([^;]+)/);if(match){prompt('Copy this token:', match[1]);}else{alert('Token not found! Log in first.');}})()</textarea>
-        
-        <button onclick="document.getElementById('jsCode').select(); document.execCommand('copy'); this.innerText='Copied!';" class="btn-login" style="background:#333; cursor:pointer;">Copy Code</button>
+        <div class="step">
+            <span class="step-title">Step 3: Extract</span>
+            <p style="margin: 0.5rem 0;">While on the Xiaomi page, click the <b>"Get Mi Token"</b> bookmark you created.</p>
+        </div>
 
-        <ol>
-            <li><a href="https://new.c.mi.com/global" target="_blank" class="btn-login">Open Login Page</a> and log in.</li>
-            <li>Press <strong>F12</strong> (or right-click -> Inspect) to open Developer Tools.</li>
-            <li>Go to the <strong>Console</strong> tab.</li>
-            <li><strong>Paste</strong> the code you copied above and press <strong>Enter</strong>.</li>
-        </ol>
+        <div class="note">
+            Works on Chrome, Edge, Firefox, and Brave (Desktop).
+        </div>
     </div>
 </body>
 </html>
