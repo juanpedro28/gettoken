@@ -40,12 +40,28 @@
         a.link { color: #FF6900; text-decoration: none; }
         a.link:hover { text-decoration: underline; }
         .btn-login { display: inline-block; background-color: #FF6900; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 0.9rem; margin: 5px 0; }
+        .download-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff8e1;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>Mi Token Extractor</h1>
-        <p><strong>Note:</strong> Websites cannot read your Xiaomi cookies directly due to security. Use the method below:</p>
+        
+        <div class="download-section">
+            <p style="margin-top:0; color:#e65100; font-weight:bold;">🚀 Recommended Method</p>
+            <p style="font-size:0.9rem; margin-bottom:10px;">Download our automated tool to login and get the token instantly.</p>
+            <a href="GetTokens.exe" class="btn-login" style="background-color: #333;">Download Windows Tool (.exe)</a>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
+
+        <p><strong>Alternative (Manual):</strong> Use the code below in your browser console:</p>
         
         <textarea id="jsCode" class="code-box" readonly>javascript:(function(){var match=document.cookie.match(/new_bbs_serviceToken=([^;]+)/);if(match){prompt('Copy this token:', match[1]);}else{alert('Token not found! Log in first.');}})()</textarea>
         
